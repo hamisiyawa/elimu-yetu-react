@@ -2,6 +2,7 @@ const User         = require("../models/User");
 const generateToken = require("../utils/generateToken");
 const generateOTP  = require("../utils/generateOTP");
 const bcrypt       = require("bcryptjs");
+const sendSms = require("../utils/sendSms");
 
 // @route   POST /api/auth/register
 // @access  Public
@@ -56,9 +57,11 @@ const register = async (req, res, next) => {
       isVerified: false,
     });
 
-    // Step 8 — in development, log the OTP to the terminal
-    // In production this is replaced with an SMS API call
-    if (process.env.NODE_ENV === "development") {
+    // Step 8 — send the OTP via SMS in production; log it in development
+    // so you can test locally without spending SMS credits
+    if (process.env.AT_API_KEY && process.env.AT_USERNAME) {
+      await sendSms(phone, `Your Elimu Yetu verification code is ${otp}. It expires in 10 minutes.`);
+    } else {
       console.log(`\n📱 OTP for ${name} (${phone}): ${otp}\n`);
     }
 
@@ -171,7 +174,9 @@ const resendOtp = async (req, res, next) => {
     user.otpExpires = otpExpires;
     await user.save();
 
-    if (process.env.NODE_ENV === "development") {
+    if (process.env.AT_API_KEY && process.env.AT_USERNAME) {
+      await sendSms(user.phone, `Your Elimu Yetu verification code is ${otp}. It expires in 10 minutes.`);
+    } else {
       console.log(`\n📱 Resent OTP for ${user.name} (${user.phone}): ${otp}\n`);
     }
 
@@ -217,8 +222,10 @@ const forgotPassword = async (req, res, next) => {
     user.otpExpires = otpExpires;
     await user.save();
 
-    if (process.env.NODE_ENV === "development") {
-      console.log(`\n📱 Password reset OTP for ${user.name} (${phone}): ${otp}\n`);
+    if (process.env.AT_API_KEY && process.env.AT_USERNAME) {
+      await sendSms(user.phone, `Your Elimu Yetu password reset code is ${otp}. It expires in 10 minutes.`);
+    } else {
+      console.log(`\n📱 Password reset OTP for ${user.name} (${user.phone}): ${otp}\n`);
     }
 
     res.status(200).json({
