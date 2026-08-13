@@ -3,6 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const cors    = require("cors");
 const path    = require("path");
+const fs      = require("fs");// Import the fs module for file system operations
 
 const connectDB    = require("./config/db");
 const authRoutes   = require("./routes/authRoutes");
@@ -14,6 +15,12 @@ connectDB();
 
 const app = express();
 
+//
+const uploadsDir = path.join(__dirname, "../uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 // ── Global middleware ──────────────────────────────────────────
 app.use(cors({
   origin: process.env.CLIENT_URL || "http://localhost:5173",
@@ -23,8 +30,8 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded files at /uploads/filename
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+// Serve static files from the uploads directory
+app.use("/uploads", express.static(uploadsDir));
 
 // ── Mount routes ───────────────────────────────────────────────
 // Every request to /api/auth/... is handled by authRoutes

@@ -1,9 +1,17 @@
 const multer = require("multer");
 const path   = require("path");
+const fs     = require("fs");// Import the fs module for file system operations
+
+// Ensure the uploads directory exists
+const uploadsDir = path.join(__dirname, "../../uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/");
+    cb(null, uploadsDir);
   },
 
   filename: (req, file, cb) => {
