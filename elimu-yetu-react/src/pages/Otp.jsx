@@ -118,9 +118,9 @@ const handleSubmit = async (e) => {
 
   setIsVerifying(true);
 
-  if (mode === "reset") {
-    // password reset flow — call verify-reset-otp endpoint
-    try {
+  try {
+    if (mode === "reset") {
+      // password reset flow — call verify-reset-otp endpoint
       const data = await verifyResetOtpApi(userId, enteredOtp);
       toast.success("Identity verified! Set your new password.");
       setTimeout(() => navigate("/reset-password", {
@@ -129,21 +129,22 @@ const handleSubmit = async (e) => {
           resetToken: data.resetToken,
         },
       }), 1500);
-    } catch (error) {
-      toast.error(error.message);
-      setOtp(["", "", "", ""]);
-      inputRefs.current[0]?.focus();
-    }
 
-  } else {
-    // signup flow — existing logic unchanged
-    const data = await verifyOtpApi(userId, enteredOtp);
-    login(data.user, data.token);
-    toast.success("OTP Verified Successfully, redirecting to Home...");
-    setTimeout(() => navigate("/"), 2000);
+    } else {
+      // signup flow
+      const data = await verifyOtpApi(userId, enteredOtp);
+      login(data.user, data.token);
+      toast.success("OTP Verified Successfully, redirecting to Home...");
+      setTimeout(() => navigate("/"), 2000);
+    }
+  } catch (error) {
+    toast.error(error.message);
+    setOtp(["", "", "", ""]);
+    inputRefs.current[0]?.focus();
+  } finally {
+    setIsVerifying(false);
   }
 };
-
 
   return (
     <>
