@@ -921,6 +921,59 @@ footer .copyright-sec{
     opacity: 1;
 }
 
+/* ── Full-page loading screen ───────────────────────────────── */
+.page-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--page-bg);
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.page-loader-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.page-loader-logo-wrap {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-loader-logo {
+  width: 70px;
+  height: auto;
+  animation: page-loader-pulse 1.4s ease-in-out infinite;
+}
+
+.page-loader-ring {
+  position: absolute;
+  inset: 0;
+  border: 3px solid var(--border-soft-amber);
+  border-top-color: var(--amber-primary);
+  border-radius: 50%;
+  animation: page-loader-spin 1s linear infinite;
+}
+
+@keyframes page-loader-pulse {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%      { transform: scale(0.88); opacity: 0.75; }
+}
+
+@keyframes page-loader-spin {
+  to { transform: rotate(360deg); }
+}
+
 
 /* ── Dark mode — redefine the adaptive tokens, everything using them
      updates automatically. Only structural / element-specific overrides
@@ -973,6 +1026,14 @@ footer .copyright-sec{
 
 [data-theme="dark"] .navbar {
   background-color: var(--navy-800) !important;
+}
+
+[data-theme="dark"] .navbar-toggler {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+[data-theme="dark"] .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255, 255, 255, 0.9)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
 }
 
 [data-theme="dark"] .bg-light {

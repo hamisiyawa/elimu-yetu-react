@@ -10,6 +10,7 @@ const {
   getMe,
   updateMe,
   changePassword,
+  deleteMe,
   forgotPassword,
   verifyResetOtp,
   resetPassword,
@@ -39,6 +40,7 @@ router.post("/reset-password",     resetPassword);
 router.get  ("/me",              protect, getMe);
 router.patch("/me",              protect, updateMe);
 router.patch("/change-password", protect, changePassword);
+router.delete("/me",             protect, deleteMe);
 router.get("/admin-stats", protect, authorise("admin"), getAdminStats);
 // profile image upload — separate from text field updates
 router.post(

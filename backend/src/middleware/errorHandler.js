@@ -1,6 +1,10 @@
 const errorHandler = (err, req, res, next) => {
   let statusCode = res.statusCode === 200 ? 500 : res.statusCode;
   let message = err.message || "Server error";
+  // Custom error status code
+  if (err.statusCode) {
+    statusCode = err.statusCode;
+  }
 
   // Duplicate field — e.g. phone already registered
   if (err.code === 11000) {

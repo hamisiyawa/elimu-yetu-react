@@ -200,3 +200,21 @@ export const resetPassword = async (userId, resetToken, newPassword, confirmPass
   if (!response.ok) throw new Error(data.message || "Password reset failed");
   return data; // { message }
 };
+
+// ── Delete account ────────────────────────────────────────────
+export const deleteAccount = async (token, password) => {
+  const response = await fetch(`${API_URL}/me`, {
+    method:  "DELETE",
+    headers: {
+      "Content-Type":  "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ password }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) throw new Error(data.message || "Account deletion failed");
+
+  return data;
+};

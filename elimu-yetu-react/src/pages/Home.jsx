@@ -6,6 +6,7 @@ import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
 import kidsBg from "../assets/images/kids.jpg";
 import {fetchNewMaterials,fetchMostDownloaded} from "../services/materialsService";
+import PageLoader from "../components/PageLoader";
 
 // ── Arrow state hook ──────────────────────────────────────────
 function useScrollState(ref, isLoading) {
@@ -124,6 +125,8 @@ function Home() {
   const [mostDownloaded, setMostDownloaded] = useState([]);
   const [loadingNew,     setLoadingNew]     = useState(true);
   const [loadingTop,     setLoadingTop]     = useState(true);
+  const [showLoader,     setShowLoader]     = useState(true);
+  const [fadeLoader,     setFadeLoader]     = useState(false);
 
   // fetch newest materials
   useEffect(() => {
@@ -155,8 +158,18 @@ function Home() {
     load();
   }, []);
 
+  // Hide the full-page loader once both sections have finished loading
+  useEffect(() => {
+    if (!loadingNew && !loadingTop) {
+      setFadeLoader(true);
+      const timer = setTimeout(() => setShowLoader(false), 400); // matches the CSS fade duration
+      return () => clearTimeout(timer);
+    }
+  }, [loadingNew, loadingTop]);
+
   return (
     <>
+      {showLoader && <PageLoader show={!fadeLoader} />}
       <Navbar />
 
       {/* Hero */}

@@ -67,7 +67,7 @@ function Navbar() {
       <nav className="navbar navbar-expand-lg navbar-light">
         <div className="container">
 
-          <button
+        <button
             className="navbar-toggler"
             type="button"
             data-bs-toggle="collapse"
@@ -76,38 +76,11 @@ function Navbar() {
             <span className="navbar-toggler-icon"></span>
           </button>
 
-          <div className="collapse navbar-collapse" id="navbarNav">
-            <ul className="navbar-nav me-auto mb-2 mb-lg-0">
+          {/* ── Always visible, even on mobile — sits next to the toggler ── */}
+          <div className="navbar-quick-actions order-lg-2 d-flex align-items-center gap-2">
 
-              <li className="nav-item">
-                <NavLink to="/" className={({ isActive }) => isActive ? "nav-link active" : "nav-link"} end>
-                  Home
-                </NavLink>
-              </li>
+            <ThemeToggle />
 
-              <li className="nav-item">
-                <NavLink to="/materials" className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}>
-                  Learning materials
-                </NavLink>
-              </li>
-
-              <li className="nav-item">
-                <NavLink to="/about" className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}>
-                  About Us
-                </NavLink>
-              </li>
-
-              <li className="nav-item">
-                <NavLink to="/support" className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}>
-                  Support
-                </NavLink>
-              </li>
-
-            </ul>
-
-            <ThemeToggle className="me-lg-3 mb-2 mb-lg-0" />
-
-            {/* ── Auth section ─────────────────────────────── */}
             {user ? (
 
               // Logged in — show avatar with dropdown
@@ -185,6 +158,36 @@ function Navbar() {
 
             )}
 
+          </div>
+
+          <div className="collapse navbar-collapse order-lg-1" id="navbarNav">
+            <ul className="navbar-nav me-auto mb-2 mb-lg-0">
+
+              <li className="nav-item">
+                <NavLink to="/" className={({ isActive }) => isActive ? "nav-link active" : "nav-link"} end>
+                  Home
+                </NavLink>
+              </li>
+
+              <li className="nav-item">
+                <NavLink to="/materials" className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}>
+                  Learning materials
+                </NavLink>
+              </li>
+
+              <li className="nav-item">
+                <NavLink to="/about" className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}>
+                  About Us
+                </NavLink>
+              </li>
+
+              <li className="nav-item">
+                <NavLink to="/support" className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}>
+                  Support
+                </NavLink>
+              </li>
+
+            </ul>
           </div>
         </div>
       </nav>

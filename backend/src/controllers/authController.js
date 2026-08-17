@@ -3,6 +3,8 @@ const generateToken = require("../utils/generateToken");
 const generateOTP  = require("../utils/generateOTP");
 const bcrypt       = require("bcryptjs");
 const sendSms = require("../utils/sendSms");
+const path = require("path");
+const fs   = require("fs");
 
 // @route   POST /api/auth/register
 // @access  Public
@@ -565,10 +567,88 @@ const getAdminStats = async (req, res, next) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────
+// @route   DELETE /api/auth/me
+// @desc    Permanently delete the logged-in user's own account —
+//          removes their materials, uploaded files, and profile
+//          image from disk, then deletes the user document itself.
+// @access  Private
+// ─────────────────────────────────────────────────────────────
+const deleteMe = async (req, res, next) => {
+  try {
+    const { password } = req.body;
+
+    if (!password) {
+      res.status(400);
+      throw new Error("Please enter your password to confirm deletion");
+    }
+
+    // Re-fetch with password — req.user from the protect middleware
+    // does not include it (select: false on the schema)
+    const user = await User.findById(req.user._id).select("+password");
+
+    if (!user) {
+      res.status(404);
+      throw new Error("User not found");
+    }
+
+    const isMatch = await user.matchPassword(password);
+    if (!isMatch) {
+      res.status(401);
+      throw new Error("Incorrect password");
+    }
+
+    const Material = require("../models/Material");
+    const Download = require("../models/Download");
+
+    // Remove every material this user uploaded, along with the
+    // actual files on disk — same pattern used in deleteMaterial
+    const materials = await Material.find({ uploadedBy: user._id });
+
+    for (const material of materials) {
+      const filePath = path.join(__dirname, "../../", material.fileUrl);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+      if (material.coverImage) {
+        const coverPath = path.join(__dirname, "../../", material.coverImage);
+        if (fs.existsSync(coverPath)) fs.unlinkSync(coverPath);
+      }
+    }
+    await Material.deleteMany({ uploadedBy: user._id });
+
+    // Materials this user approved as admin stay, but shouldn't
+    // point at a deleted account
+    await Material.updateMany(
+      { approvedBy: user._id },
+      { $set: { approvedBy: null } }
+    );
+
+    // Keep download history for analytics, just anonymise it
+    await Download.updateMany(
+      { downloadedBy: user._id },
+      { $set: { downloadedBy: null } }
+    );
+
+    // Remove the profile picture from disk if one was uploaded
+    if (user.profileImage) {
+      const avatarPath = path.join(__dirname, "../../", user.profileImage);
+      if (fs.existsSync(avatarPath)) fs.unlinkSync(avatarPath);
+    }
+
+    await user.deleteOne();
+
+    res.status(200).json({ message: "Account deleted successfully" });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   verifyOtp,
   resendOtp,
+  deleteMe,
   login,
   getMe,
   updateMe,

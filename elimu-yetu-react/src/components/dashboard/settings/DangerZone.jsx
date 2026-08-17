@@ -1,25 +1,39 @@
 import { useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
+import { deleteAccount } from "../../../services/authService";
 import { toast } from "react-toastify";
 
 function DangerZone() {
 
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
 
   const [confirmName, setConfirmName] = useState("");
+  const [password, setPassword]       = useState("");
+  const [isDeleting, setIsDeleting]   = useState(false);
 
   const isMatch = confirmName.trim() === user?.name;
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
 
     if (!isMatch) {
       return toast.error("Profile name does not match");
     }
 
-    toast.success("Account deleted successfully");
+    if (!password) {
+      return toast.error("Enter your password to confirm deletion");
+    }
 
-    // future backend delete logic here
-    logout();
+    setIsDeleting(true);
+
+    try {
+      await deleteAccount(token, password);
+      toast.success("Account deleted successfully");
+      logout();
+    } catch (error) {
+      toast.error(error.message || "Failed to delete account");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -72,6 +86,22 @@ function DangerZone() {
             }
           />
 
+        </div>
+
+        <div className="mb-3">
+
+          <label className="form-label fw-semibold">
+            Enter your password
+          </label>
+
+          <input
+            type="password"
+            className="form-control"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
           <small className="text-muted">
             This action cannot be undone.
           </small>
@@ -80,13 +110,13 @@ function DangerZone() {
 
         <button
           className="btn btn-danger w-100 fw-semibold"
-          disabled={!isMatch}
+          disabled={!isMatch || !password || isDeleting}
           onClick={handleDelete}
         >
 
           <i className="fa fa-trash me-2"></i>
 
-          Permanently Delete Account
+          {isDeleting ? "Deleting..." : "Permanently Delete Account"}
 
         </button>
 
