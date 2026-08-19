@@ -10,12 +10,10 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 const User = require("./models/User");
 
-// ── Edit these three values before running ──────────────────────
-const ADMIN_NAME     = "Hamisi Admin";
-const ADMIN_USERNAME = "admin";          // used to log in — must be unique
-const ADMIN_PHONE    = "0750810781";     // any unused number — required by schema
-const ADMIN_PASSWORD = "Admin123!";   // change this immediately after first login
-// ──────────────────────────────────────────────────────────────
+const ADMIN_NAME     = process.env.ADMIN_NAME;
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+const ADMIN_PHONE    = process.env.ADMIN_PHONE;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 const seedAdmin = async () => {
   try {
@@ -42,7 +40,6 @@ const seedAdmin = async () => {
 
     console.log("✅ Admin account created successfully:");
     console.log(`   Username: ${ADMIN_USERNAME}`);
-    console.log(`   Password: ${ADMIN_PASSWORD}`);
     console.log(`   Login at: /login?admin=true`);
     console.log("\n⚠️  Change this password after your first login.\n");
 

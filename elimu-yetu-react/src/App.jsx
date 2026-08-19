@@ -16,8 +16,8 @@ import DashboardHome from "./pages/dashboard/DashboardHome";
 import ManageMaterials from "./pages/dashboard/ManageMaterials";
 import Settings from "./pages/dashboard/Settings";
 import AdminApprovals from "./pages/dashboard/AdminApprovals";
-
 import ProtectedRoute from "./components/common/ProtectedRoute";
+import ManageUsers from "./pages/dashboard/ManageUsers";
 
 function App() {
   return (
@@ -60,6 +60,12 @@ function App() {
           <Route path="approvals" element={
             <ProtectedRoute allowedRoles={"admin"}>
                <AdminApprovals />
+            </ProtectedRoute>
+          } />
+
+          <Route path="manage-users" element={
+            <ProtectedRoute allowedRoles={"admin"}>
+               <ManageUsers />
             </ProtectedRoute>
           } />
 

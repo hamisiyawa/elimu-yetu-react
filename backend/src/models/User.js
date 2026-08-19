@@ -51,6 +51,16 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
 
+    isSuspended: {
+      type: Boolean,
+      default: false,
+    },
+
+    suspendReason: {
+      type: String,
+      default: null,
+    },
+
     profileImage: {
       type: String,
       default: null,

@@ -16,6 +16,10 @@ const {
   resetPassword,
   getAdminStats, 
   uploadAvatar,
+  getAllUsers,
+  verifyUserManually,
+  toggleUserSuspend,
+  createAdminAccount,
 } = require("../controllers/authController");
 
 const upload = require("../middleware/uploadMiddleware");
@@ -42,6 +46,13 @@ router.patch("/me",              protect, updateMe);
 router.patch("/change-password", protect, changePassword);
 router.delete("/me",             protect, deleteMe);
 router.get("/admin-stats", protect, authorise("admin"), getAdminStats);
+router.get   ("/users",                  protect, authorise("admin"), getAllUsers);
+router.patch ("/users/:id/verify",       protect, authorise("admin"), verifyUserManually);
+router.patch ("/users/:id/suspend",      protect, authorise("admin"), toggleUserSuspend);
+router.post  ("/users/create-admin",     protect, authorise("admin"), createAdminAccount);router.get   ("/users",                  protect, authorise("admin"), getAllUsers);
+router.patch ("/users/:id/verify",       protect, authorise("admin"), verifyUserManually);
+router.patch ("/users/:id/suspend",      protect, authorise("admin"), toggleUserSuspend);
+router.post  ("/users/create-admin",     protect, authorise("admin"), createAdminAccount);
 // profile image upload — separate from text field updates
 router.post(
   "/upload-avatar",

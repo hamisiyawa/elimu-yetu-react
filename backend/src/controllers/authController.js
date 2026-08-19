@@ -395,6 +395,16 @@ const login = async (req, res, next) => {
       );
     }
 
+    // Block suspended accounts from logging in
+    if (user.isSuspended) {
+      res.status(403);
+      throw new Error(
+        user.suspendReason
+          ? `Your account has been suspended: ${user.suspendReason}`
+          : "Your account has been suspended. Contact support for help."
+      );
+    }
+
     const token = generateToken(user._id);
 
     res.status(200).json({
@@ -644,6 +654,180 @@ const deleteMe = async (req, res, next) => {
   }
 };
 
+
+// ─────────────────────────────────────────────────────────────
+// @route   GET /api/auth/users
+// @desc    List all users — supports search, role filter, and
+//          pagination. Admin-only central user management view.
+// @access  Private/Admin
+// ─────────────────────────────────────────────────────────────
+const getAllUsers = async (req, res, next) => {
+  try {
+    const page  = parseInt(req.query.page)  || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const { search, role, status } = req.query;
+
+    const filter = {};
+
+    if (role) filter.role = role;
+
+    if (status === "unverified") filter.isVerified = false;
+    if (status === "suspended")  filter.isSuspended = true;
+    if (status === "active")     { filter.isVerified = true; filter.isSuspended = false; }
+
+    if (search) {
+      // Escape regex special characters so a crafted search string
+      // can't break the query or cause pathological backtracking
+      const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter.$or = [
+        { name:     { $regex: safeSearch, $options: "i" } },
+        { phone:    { $regex: safeSearch, $options: "i" } },
+        { username: { $regex: safeSearch, $options: "i" } },
+        { email:    { $regex: safeSearch, $options: "i" } },
+      ];
+    }
+
+    const total = await User.countDocuments(filter);
+
+    const users = await User.find(filter)
+      // otp/resetToken aren't select:false on the schema, so they
+      // must be explicitly excluded here — never expose these
+      .select("-otp -otpExpires -resetToken -resetTokenExpires")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    res.status(200).json({
+      users,
+      page,
+      totalPages: Math.ceil(total / limit),
+      total,
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// @route   PATCH /api/auth/users/:id/verify
+// @desc    Manually verify a user who's stuck unable to complete
+//          OTP (e.g. never received the SMS). Skips OTP entirely.
+// @access  Private/Admin
+// ─────────────────────────────────────────────────────────────
+const verifyUserManually = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      res.status(404);
+      throw new Error("User not found");
+    }
+
+    if (user.isVerified) {
+      res.status(400);
+      throw new Error("This account is already verified");
+    }
+
+    user.isVerified = true;
+    user.otp        = null;
+    user.otpExpires = null;
+    await user.save();
+
+    res.status(200).json({ message: `${user.name}'s account has been verified` });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// @route   PATCH /api/auth/users/:id/suspend
+// @desc    Toggle suspend/unsuspend on a user account, with an
+//          optional reason recorded when suspending.
+// @access  Private/Admin
+// ─────────────────────────────────────────────────────────────
+const toggleUserSuspend = async (req, res, next) => {
+  try {
+    const { reason } = req.body;
+
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      res.status(404);
+      throw new Error("User not found");
+    }
+
+    // Safety guard — an admin can't suspend their own account,
+    // which would otherwise lock them out with no way back in
+    if (user._id.equals(req.user._id)) {
+      res.status(400);
+      throw new Error("You cannot suspend your own account");
+    }
+
+    user.isSuspended  = !user.isSuspended;
+    user.suspendReason = user.isSuspended ? (reason || null) : null;
+    await user.save();
+
+    res.status(200).json({
+      message: user.isSuspended
+        ? `${user.name}'s account has been suspended`
+        : `${user.name}'s account has been reinstated`,
+      isSuspended: user.isSuspended,
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// @route   POST /api/auth/users/create-admin
+// @desc    Create a new admin account directly — skips OTP
+//          entirely, same as the one-off seed script, but usable
+//          any time from inside the dashboard by an existing admin.
+// @access  Private/Admin
+// ─────────────────────────────────────────────────────────────
+const createAdminAccount = async (req, res, next) => {
+  try {
+    const { name, username, phone, password } = req.body;
+
+    if (!name || !username || !phone || !password) {
+      res.status(400);
+      throw new Error("Name, username, phone, and password are all required");
+    }
+
+    const existing = await User.findOne({ $or: [{ username }, { phone }] });
+    if (existing) {
+      res.status(409);
+      throw new Error("An account with this username or phone already exists");
+    }
+
+    const admin = await User.create({
+      name,
+      username,
+      phone,
+      password,
+      role:       "admin",
+      isVerified: true,
+    });
+
+    res.status(201).json({
+      message: `Admin account created for ${admin.name}`,
+      user: {
+        _id:      admin._id,
+        name:     admin.name,
+        username: admin.username,
+        phone:    admin.phone,
+        role:     admin.role,
+      },
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   verifyOtp,
@@ -657,5 +841,9 @@ module.exports = {
   verifyResetOtp,    
   resetPassword, 
   getAdminStats,
-  uploadAvatar, 
+  uploadAvatar,
+  getAllUsers,
+  verifyUserManually,
+  toggleUserSuspend,
+  createAdminAccount, 
 };

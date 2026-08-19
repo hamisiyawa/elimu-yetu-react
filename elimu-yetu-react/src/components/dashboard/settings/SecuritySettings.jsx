@@ -3,6 +3,32 @@ import { useAuth } from "../../../context/AuthContext";
 import { changePassword } from "../../../services/authService";
 import { toast } from "react-toastify";
 
+  // reusable password field with show/hide toggle
+  const PasswordField = ({ label, name, value, show, onToggle, error, onChange }) => (
+    <div className="mb-3">
+      <label className="form-label fw-semibold required">{label}</label>
+      <div className="input-group">
+        <input
+          type={show ? "text" : "password"}
+          className={`form-control ${error ? "is-invalid" : ""}`}
+          name={name}
+          value={value}
+          onChange={onChange}
+        />
+        <button
+          type="button"
+          className="btn btn-outline-secondary"
+          onClick={onToggle}
+        >
+          <i className={`bi ${show ? "bi-eye-slash" : "bi-eye"}`}></i>
+        </button>
+      </div>
+      {error && (
+        <div className="invalid-feedback d-block">{error}</div>
+      )}
+    </div>
+  );
+
 function SecuritySettings() {
   const { token } = useAuth();
 
@@ -85,31 +111,6 @@ function SecuritySettings() {
     }
   };
 
-  // reusable password field with show/hide toggle
-  const PasswordField = ({ label, name, show, onToggle, error }) => (
-    <div className="mb-3">
-      <label className="form-label fw-semibold required">{label}</label>
-      <div className="input-group">
-        <input
-          type={show ? "text" : "password"}
-          className={`form-control ${error ? "is-invalid" : ""}`}
-          name={name}
-          value={passwordData[name]}
-          onChange={handleChange}
-        />
-        <button
-          type="button"
-          className="btn btn-outline-secondary"
-          onClick={onToggle}
-        >
-          <i className={`bi ${show ? "bi-eye-slash" : "bi-eye"}`}></i>
-        </button>
-      </div>
-      {error && (
-        <div className="invalid-feedback d-block">{error}</div>
-      )}
-    </div>
-  );
 
   return (
     <div className="settings-card">

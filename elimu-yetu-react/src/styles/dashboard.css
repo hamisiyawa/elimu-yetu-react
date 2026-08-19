@@ -614,6 +614,38 @@
   gap: 6px;
 }
 
+/* ── Manage Users — mobile card list ─────────────────────────── */
+.mobile-users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobile-user-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft-amber);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.mobile-user-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.mobile-user-card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-muted);
+}
+
 /*MODAL*/
 
 .custom-modal-overlay {

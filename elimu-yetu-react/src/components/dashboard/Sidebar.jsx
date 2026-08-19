@@ -99,6 +99,19 @@ const Sidebar = forwardRef(function Sidebar({ collapsed, isMobile, onClose }, re
           </li>
         )}
 
+        {user?.role === "admin" && (
+          <li>
+            <NavLink
+              to="/dashboard/manage-users"
+              className="sidebar-link"
+              onClick={isMobile ? onClose : undefined}
+            >
+              <i className="bi bi-people"></i>
+              {(isMobile || !collapsed) && <span> Manage Users</span>}
+            </NavLink>
+          </li>
+        )}
+
         <li>
           <NavLink
             to="/dashboard/settings"

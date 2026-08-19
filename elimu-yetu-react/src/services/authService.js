@@ -162,6 +162,63 @@ export const fetchAdminStats = async (token) => {
   // { totalUsers, totalMaterials, approvedMaterials, pendingMaterials, rejectedMaterials }
 };
 
+// ── Fetch all users (admin) ────────────────────────────────────
+export const fetchAllUsers = async (token, { page = 1, search = "", role = "", status = "" } = {}) => {
+  const params = new URLSearchParams({ page, ...(search && { search }), ...(role && { role }), ...(status && { status }) });
+
+  const response = await fetch(`${API_URL}/users?${params}`, {
+    headers: { "Authorization": `Bearer ${token}` },
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "Failed to fetch users");
+  return data;
+};
+
+// ── Manually verify a stuck account (admin) ─────────────────────
+export const verifyUserManually = async (token, userId) => {
+  const response = await fetch(`${API_URL}/users/${userId}/verify`, {
+    method:  "PATCH",
+    headers: { "Authorization": `Bearer ${token}` },
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "Failed to verify account");
+  return data;
+};
+
+// ── Suspend / unsuspend a user (admin) ──────────────────────────
+export const toggleUserSuspend = async (token, userId, reason = "") => {
+  const response = await fetch(`${API_URL}/users/${userId}/suspend`, {
+    method:  "PATCH",
+    headers: {
+      "Content-Type":  "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ reason }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "Failed to update account status");
+  return data;
+};
+
+// ── Create a new admin account (admin) ──────────────────────────
+export const createAdminAccount = async (token, adminData) => {
+  const response = await fetch(`${API_URL}/users/create-admin`, {
+    method:  "POST",
+    headers: {
+      "Content-Type":  "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify(adminData),
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "Failed to create admin account");
+  return data;
+};
+
 // ── Forgot password — send OTP to phone ──────────────────────
 export const forgotPassword = async (phone, role) => {
   const response = await fetch(`${API_URL}/forgot-password`, {
