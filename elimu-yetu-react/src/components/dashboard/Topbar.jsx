@@ -3,49 +3,46 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import ThemeToggle from "../ThemeToggle";
 import defaultUser from "../../assets/images/default-user.png";
+import {
+  fetchNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "../../services/notificationsService";
 
-// ── Demo notifications — replace with real API data in V2 ──────
-// In V2 these will come from GET /api/notifications
-// and include material approval results sent to teachers
-const DEMO_NOTIFICATIONS = [
-  {
-    id: 1,
-    type:    "success",
-    icon:    "bi-check-circle-fill",
-    message: "Your material \"Grade 4 Maths Term 1\" was approved",
-    time:    "2 hours ago",
-    unread:  true,
-  },
-  {
-    id: 2,
-    type:    "danger",
-    icon:    "bi-x-circle-fill",
-    message: "Your material \"Grade 2 Science\" was rejected",
-    time:    "Yesterday",
-    unread:  true,
-  },
-  {
-    id: 3,
-    type:    "info",
-    icon:    "bi-info-circle-fill",
-    message: "New CBC curriculum guidelines have been published",
-    time:    "3 days ago",
-    unread:  false,
-  },
-];
+// Maps a notification's "type" (from the backend) to the icon shown
+const TYPE_ICONS = {
+  success: "bi-check-circle-fill",
+  danger:  "bi-x-circle-fill",
+  info:    "bi-info-circle-fill",
+  warning: "bi-exclamation-circle-fill",
+};
+
+// Turns a timestamp into "2 hours ago" / "Yesterday" / "3 days ago"
+const timeAgo = (dateString) => {
+  const seconds = Math.floor((Date.now() - new Date(dateString)) / 1000);
+
+  if (seconds < 60)    return "Just now";
+  if (seconds < 3600)  return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+
+  const days = Math.floor(seconds / 86400);
+  if (days === 1) return "Yesterday";
+  if (days < 7)   return `${days} days ago`;
+
+  return new Date(dateString).toLocaleDateString();
+};
 
 function Topbar({ toggleSidebar }) {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const navigate = useNavigate();
 
   const [profileOpen, setProfileOpen]     = useState(false);
   const [notifOpen,   setNotifOpen]       = useState(false);
-  const [notifications, setNotifications] = useState(DEMO_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount]     = useState(0);
 
   const profileRef = useRef(null);
   const notifRef   = useRef(null);
-
-  const unreadCount = notifications.filter((n) => n.unread).length;
 
   // close dropdowns when clicking outside
   useEffect(() => {
@@ -61,20 +58,57 @@ function Topbar({ toggleSidebar }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // Load notifications on mount, then refresh every 60s so the
+  // badge count stays reasonably current without needing sockets
+  useEffect(() => {
+    //
+    if (!token) return;
+
+    const loadNotifications = async () => {
+      try {
+        const data = await fetchNotifications(token);
+        setNotifications(data.notifications);
+        setUnreadCount(data.unreadCount);
+      } catch (error) {
+        console.error("Failed to load notifications:", error.message);
+      }
+    };
+
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 60000);
+    return () => clearInterval(interval);
+  }, [token]);
+
   const handleLogout = () => {
     setProfileOpen(false);
     logout();
     navigate("/login");
   };
 
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+  const markAllRead = async () => {
+    // Update the UI immediately, then confirm with the server
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setUnreadCount(0);
+    try {
+      await markAllNotificationsRead(token);
+    } catch (error) {
+      console.error("Failed to mark all as read:", error.message);
+    }
   };
 
-  const markOneRead = (id) => {
+  const markOneRead = async (id) => {
+    const wasUnread = notifications.find((n) => n._id === id)?.read === false;
+
     setNotifications((prev) =>
-      prev.map((n) => n.id === id ? { ...n, unread: false } : n)
+      prev.map((n) => n._id === id ? { ...n, read: true } : n)
     );
+    if (wasUnread) setUnreadCount((prev) => Math.max(0, prev - 1));
+
+    try {
+      await markNotificationRead(token, id);
+    } catch (error) {
+      console.error("Failed to mark as read:", error.message);
+    }
   };
 
   const profileImageSrc = user?.profileImage
@@ -131,16 +165,16 @@ function Topbar({ toggleSidebar }) {
                 ) : (
                   notifications.map((n) => (
                     <div
-                      key={n.id}
-                      className={`notif-item ${n.unread ? "unread" : ""}`}
-                      onClick={() => markOneRead(n.id)}
+                      key={n._id}
+                      className={`notif-item ${!n.read ? "unread" : ""}`}
+                      onClick={() => markOneRead(n._id)}
                     >
                       <div className={`notif-icon ${n.type}`}>
-                        <i className={`bi ${n.icon}`}></i>
+                        <i className={`bi ${TYPE_ICONS[n.type]}`}></i>
                       </div>
                       <div>
                         <div className="notif-text">{n.message}</div>
-                        <div className="notif-time">{n.time}</div>
+                        <div className="notif-time">{timeAgo(n.createdAt)}</div>
                       </div>
                     </div>
                   ))

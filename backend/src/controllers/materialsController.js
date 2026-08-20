@@ -2,6 +2,8 @@ const Material = require("../models/Material");
 const Download = require("../models/Download");
 const path     = require("path");
 const fs       = require("fs");
+const notify = require("../utils/notify");
+const User   = require("../models/User");
 
 // ─────────────────────────────────────────────────────────────
 // @route   GET /api/materials
@@ -170,6 +172,18 @@ const uploadMaterial = async (req, res, next) => {
       status:     "pending", // every upload waits for admin approval
     });
 
+    // Notify every admin — a new material is waiting for review
+    const admins = await User.find({ role: "admin" }).select("_id");
+    await Promise.all(admins.map((admin) =>
+      notify({
+        recipient: admin._id,
+        type:      "info",
+        message:   `New material "${material.title}" was uploaded and is awaiting review`,
+        relatedMaterial: material._id,
+      })
+    )); 
+     
+    // Respond with the newly created material
     res.status(201).json({
       message:  "Material uploaded successfully. It will be reviewed before publishing.",
       material,
@@ -220,7 +234,6 @@ const updateMaterial = async (req, res, next) => {
     }
 
     await material.save();
-
     res.status(200).json({
       message: "Material updated successfully",
       material,
@@ -313,6 +326,24 @@ const updateMaterialStatus = async (req, res, next) => {
     material.rejectionReason = status === "rejected" ? rejectionReason : null;
 
     await material.save();
+
+        // Notify the uploader — but only if they haven't opted out of
+    // this specific notification type in their settings
+    const uploader = await User.findById(material.uploadedBy);
+
+    const prefKey = status === "approved" ? "materialApproved" : "materialRejected";
+    const wantsThisNotification = uploader?.preferences?.[prefKey] !== false;
+
+    if (uploader && wantsThisNotification) {
+      await notify({
+        recipient: uploader._id,
+        type:      status === "approved" ? "success" : "danger",
+        message:   status === "approved"
+          ? `Your material "${material.title}" was approved and is now live`
+          : `Your material "${material.title}" was rejected: ${rejectionReason}`,
+        relatedMaterial: material._id,
+      });
+    }
 
     res.status(200).json({
       message:  `Material ${status} successfully`,

@@ -9,6 +9,7 @@ const connectDB    = require("./config/db");
 const authRoutes   = require("./routes/authRoutes");
 const materialsRoutes = require("./routes/materialsRoutes");
 const errorHandler = require("./middleware/errorHandler");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 // Connect to MongoDB
 connectDB();
@@ -37,7 +38,7 @@ app.use("/uploads", express.static(uploadsDir));
 // Every request to /api/auth/... is handled by authRoutes
 app.use("/api/auth", authRoutes);
 app.use("/api/materials", materialsRoutes);
-
+app.use("/api/notifications", notificationRoutes);
 // ── Health check ───────────────────────────────────────────────
 app.get("/api/health", (req, res) => {
   res.json({
