@@ -29,6 +29,7 @@ function Otp() {
   const contact = phone || "your phone";
 
   const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyLockout, setVerifyLockout] = useState(0);
 
   //disable verify otp button if otp is not fully entered
   const isOtpComplete = otp.every((digit) => digit !== "");
@@ -46,19 +47,37 @@ function Otp() {
     }
   }, [timer]);
 
+  // countdown for the verify-button lockout (separate from the
+  // resend timer above — these are two different rate limits)
+  useEffect(() => {
+    if (verifyLockout <= 0) return;
+    const interval = setInterval(() => {
+      setVerifyLockout((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [verifyLockout]);
+
   // handle resend OTP
-const handleResend = async () => {
-  try {
-    await resendOtpApi(userId);
-    toast.success("OTP resent successfully!");
-    setTimer(30);
-    setCanResend(false);
-    setOtp(["", "", "", ""]);
-    inputRefs.current[0]?.focus();
-  } catch (error) {
-    toast.error(error.message);
-  }
-};
+  const handleResend = async () => {
+    try {
+      await resendOtpApi(userId);
+      toast.success("OTP resent successfully!");
+      setTimer(30);
+      setCanResend(false);
+      setOtp(["", "", "", ""]);
+      inputRefs.current[0]?.focus();
+    } catch (error) {
+      if (error.retryAfter) {
+        // Rate limited — show the real server-enforced wait time
+        // in the exact same countdown UI, instead of a one-off toast
+        toast.error(error.message);
+        setTimer(error.retryAfter);
+        setCanResend(false);
+      } else {
+        toast.error(error.message);
+      }
+    }
+  };
 
   // mask contact for display (e.g. XXXX XXX X844)
   const maskContact = (value) => {
@@ -141,6 +160,9 @@ const handleSubmit = async (e) => {
     toast.error(error.message);
     setOtp(["", "", "", ""]);
     inputRefs.current[0]?.focus();
+    if (error.retryAfter) {
+      setVerifyLockout(error.retryAfter);
+    }
   } finally {
     setIsVerifying(false);
   }
@@ -178,9 +200,11 @@ const handleSubmit = async (e) => {
           <button
               type="submit"
               className={`btn w-100 ${isOtpComplete ? "btn-warning" : "btn-secondary"}`}
-              disabled={!isOtpComplete || isVerifying}
+              disabled={!isOtpComplete || isVerifying || verifyLockout > 0}
             >
-              {isVerifying ? (
+              {verifyLockout > 0 ? (
+                `⏳ Try again in ${verifyLockout}s`
+              ) : isVerifying ? (
                 <>
                   <span className="spinner-border spinner-border-sm me-2" role="status"></span>
                   Verifying...

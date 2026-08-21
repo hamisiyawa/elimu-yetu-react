@@ -4,6 +4,15 @@
 // const API_URL = "http://localhost:5000/api/auth";
 const API_URL = `${import.meta.env.VITE_API_URL}/api/auth`;
 
+// Throws an Error with the server's message — and if the response was
+// a rate-limit (429), attaches retryAfter (seconds) onto the error so
+// calling code can show a real countdown instead of a generic message
+const throwApiError = (data, fallbackMessage) => {
+  const error = new Error(data.message || fallbackMessage);
+  if (data.retryAfter) error.retryAfter = data.retryAfter;
+  throw error;
+};
+
 // ── Register ──────────────────────────────────────────────────
 export const registerUser = async (formData) => {
   const response = await fetch(`${API_URL}/register`, {
@@ -37,7 +46,7 @@ export const verifyOtp = async (userId, otp) => {
 
   const data = await response.json();
 
-  if (!response.ok) throw new Error(data.message || "OTP verification failed");
+    if (!response.ok) throwApiError(data, "OTP verification failed");
 
   return data; // { message, token, user }
 };
@@ -52,7 +61,7 @@ export const resendOtp = async (userId) => {
 
   const data = await response.json();
 
-  if (!response.ok) throw new Error(data.message || "Failed to resend OTP");
+  if (!response.ok) throwApiError(data, "Failed to resend OTP");
 
   return data;
 };
@@ -72,7 +81,7 @@ export const loginUser = async (role, formData) => {
 
   const data = await response.json();
 
-  if (!response.ok) throw new Error(data.message || "Login failed");
+  if (!response.ok) throwApiError(data, "Login failed");
 
   return data; // { token, user }
 };
@@ -241,7 +250,7 @@ export const verifyResetOtp = async (userId, otp) => {
   });
 
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || "OTP verification failed");
+    if (!response.ok) throwApiError(data, "OTP verification failed");
   return data; // { message, resetToken, userId }
 };
 

@@ -4,13 +4,14 @@ import LoginForm from "../components/login/LoginForm";
 import { loginUser } from "../services/authService";
 import validateLogin from "../utils/validateLogin";
 import { toast } from "react-toastify";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import signupBg from "../assets/images/signup img.jpg";
 
 function Login() {
   const [isLoading, setIsLoading] = useState(false);
+  const [lockoutSeconds, setLockoutSeconds] = useState(0); // State to track lockout time
   const { user,login } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -26,7 +27,18 @@ function Login() {
     password: "",
   });
 
+ // Countdown timer for lockout
+  useEffect(() => {
+    if (lockoutSeconds <= 0) return;
+    const interval = setInterval(() => {
+      setLockoutSeconds((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [lockoutSeconds]);
+  
+ // Redirect to home if already logged in
   if (user) return <Navigate to="/" replace />;
+
 
   const handleRoleChange = (selectedRole) => {
     setRole(selectedRole);
@@ -67,6 +79,9 @@ const handleSubmit = async (e) => {
 
   } catch (error) {
     toast.error(error.message);
+    if (error.retryAfter) {
+      setLockoutSeconds(error.retryAfter);
+    }
   } finally {
     setIsLoading(false);
   }
@@ -101,6 +116,7 @@ const handleSubmit = async (e) => {
               showPassword={showPassword}
               setShowPassword={setShowPassword}
               handleSubmit={handleSubmit}
+              lockoutSeconds={lockoutSeconds} // Pass lockoutSeconds to the LoginForm component
             />
 
           </div>

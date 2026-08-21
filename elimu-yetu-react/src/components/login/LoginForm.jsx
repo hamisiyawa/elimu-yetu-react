@@ -12,6 +12,7 @@ function LoginForm({
   showPassword,
   setShowPassword,
   handleSubmit,
+  lockoutSeconds
 }) {
   return (
     <form onSubmit={handleSubmit}>
@@ -40,8 +41,12 @@ function LoginForm({
       </div>
 
       <div className="d-grid">
-        <button type="submit" className="btn btn-warning btn-lg W-100">
-          Login
+        <button type="submit" 
+        className="btn btn-warning btn-lg W-100" 
+        disabled={lockoutSeconds > 0}>
+        {lockoutSeconds > 0
+          ? `⏳ Try again in ${lockoutSeconds}s`
+          : "Login"}
         </button>
       </div>
 

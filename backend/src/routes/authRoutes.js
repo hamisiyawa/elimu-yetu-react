@@ -26,16 +26,23 @@ const upload = require("../middleware/uploadMiddleware");
 
 const { protect, authorise } = require("../middleware/authMiddleware");
 
+const {
+  otpRequestLimiter,
+  resendOtpLimiter,
+  otpVerifyLimiter,
+  loginLimiter,
+} = require("../middleware/rateLimiter");
+
 // ── Public routes ─────────────────────────────────────────────
 // No token required — anyone can call these
 
-router.post("/register",    register);
-router.post("/verify-otp",  verifyOtp);
-router.post("/resend-otp",  resendOtp);
-router.post("/login",       login);
-router.post("/forgot-password",    forgotPassword);
-router.post("/verify-reset-otp",   verifyResetOtp);
-router.post("/reset-password",     resetPassword);
+router.post("/register", otpRequestLimiter, register);
+router.post("/verify-otp", otpVerifyLimiter, verifyOtp);
+router.post("/resend-otp", resendOtpLimiter, resendOtp);
+router.post("/login", loginLimiter, login);
+router.post("/forgot-password", otpRequestLimiter, forgotPassword);
+router.post("/verify-reset-otp", otpVerifyLimiter, verifyResetOtp);
+router.post("/reset-password", resetPassword);
 
 // ── Private routes ────────────────────────────────────────────
 // protect runs first — if token is missing or invalid it stops
