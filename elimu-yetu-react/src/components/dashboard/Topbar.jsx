@@ -111,9 +111,7 @@ function Topbar({ toggleSidebar }) {
     }
   };
 
-  const profileImageSrc = user?.profileImage
-    ? `${import.meta.env.VITE_API_URL}${user.profileImage}`
-    : defaultUser;
+  const profileImageSrc = user?.profileImage || defaultUser;
 
   return (
     <div className="topbar">

@@ -1,7 +1,6 @@
 const multer = require("multer");
-const path   = require("path");
-const fs     = require("fs");// Import the fs module for file system operations
-
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("../config/cloudinary");
 
 // Documents accepted for the "file" field (the material itself)
 const ALLOWED_DOCUMENT_TYPES = [
@@ -11,8 +10,7 @@ const ALLOWED_DOCUMENT_TYPES = [
 ];
 
 // Images accepted for "coverImage" and "profileImage" —
-// SVG is deliberately excluded: it can carry embedded <script> tags
-// and would otherwise be served directly from your own domain.
+// SVG is deliberately excluded: it can carry embedded <script> tags.
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
   "image/jpg",
@@ -20,31 +18,49 @@ const ALLOWED_IMAGE_TYPES = [
   "image/webp",
 ];
 
-// Ensure the uploads directory exists
-const uploadsDir = path.join(__dirname, "../../uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+// Cloudinary needs to know, per file, which folder to put it in and
+// whether it's an "image" (gets thumbnails/transformations) or a
+// "raw" file (PDFs/Word docs — stored as-is, no image processing)
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: (req, file) => {
 
+    if (file.fieldname === "file") {
+      // Raw resources on Cloudinary don't auto-preserve the original
+      // extension — without it, browsers can't tell it's a PDF/DOCX
+      // and just download a random-named blob instead of previewing it.
+      // Building the public_id ourselves, WITH the extension included,
+      // fixes both the broken preview and the ugly random filename.
+      const ext = file.originalname.split(".").pop();
+      const safeName = file.originalname
+        .replace(/\.[^/.]+$/, "")           // strip the original extension
+        .replace(/[^a-zA-Z0-9-_]/g, "_");   // strip spaces/special chars
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
+      return {
+        folder: "elimu-yetu/materials",
+        resource_type: "raw",
+        public_id: `${Date.now()}-${safeName}.${ext}`,
+      };
+    }
 
-  filename: (req, file, cb) => {
-    let prefix;
-    if (file.fieldname === "file")          prefix = "material";
-    else if (file.fieldname === "coverImage") prefix = "cover";
-    else if (file.fieldname === "profileImage") prefix = "profile";
-    else prefix = "upload";
+    if (file.fieldname === "coverImage") {
+      return {
+        folder: "elimu-yetu/covers",
+        resource_type: "image",
+      };
+    }
 
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${prefix}-${Date.now()}${ext}`);
+    if (file.fieldname === "profileImage") {
+      return {
+        folder: "elimu-yetu/avatars",
+        resource_type: "image",
+      };
+    }
+
+    return { folder: "elimu-yetu/misc" };
   },
 });
 
-// File filter to validate file types
 const fileFilter = (req, file, cb) => {
   if (file.fieldname === "file" && !ALLOWED_DOCUMENT_TYPES.includes(file.mimetype)) {
     const err = new Error("Only PDF and Word documents are allowed");

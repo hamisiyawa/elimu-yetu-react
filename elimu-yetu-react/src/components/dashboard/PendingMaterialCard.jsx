@@ -3,7 +3,7 @@ import defaultImage from "../../assets/images/targeter.jpg";
 function PendingMaterialCard({ material, onApprove, onReject, isProcessing }) {
 
   const getImageSrc = (coverImage) =>
-    coverImage ? `${import.meta.env.VITE_API_URL}${coverImage}` : defaultImage;
+        coverImage || defaultImage;
 
   return (
     <div className="pending-card">
@@ -40,7 +40,7 @@ function PendingMaterialCard({ material, onApprove, onReject, isProcessing }) {
 
         <div className="pending-card-actions">
           <a
-            href={`${import.meta.env.VITE_API_URL}${material.fileUrl}`}
+            href={material.fileUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-sm btn-outline-secondary"

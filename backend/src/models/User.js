@@ -66,6 +66,11 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    profileImagePublicId: {
+      type: String,
+      default: null,
+    },
+
     otp: {
       type: String,
       default: null,

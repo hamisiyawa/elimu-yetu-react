@@ -21,7 +21,7 @@ function MaterialCard({ _id, title, grade, term, coverImage, isFree, price }) {
       const data = await logDownload(_id, token);
 
       // open the file in a new tab — browser handles the download
-      window.open(`${import.meta.env.VITE_API_URL}${data.fileUrl}`, "_blank");
+      window.open(data.fileUrl, "_blank");
 
     } catch (error) {
       toast.error(error.message || "Download failed. Please try again.");
@@ -36,9 +36,7 @@ function MaterialCard({ _id, title, grade, term, coverImage, isFree, price }) {
       <div className="card-image">
         <img
           src={
-            coverImage
-              ? `${import.meta.env.VITE_API_URL}${coverImage}`
-              : defaultCover
+            coverImage || defaultImage
           }
           alt={title}
         />

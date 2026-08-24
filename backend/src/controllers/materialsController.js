@@ -4,6 +4,7 @@ const path     = require("path");
 const fs       = require("fs");
 const notify = require("../utils/notify");
 const User   = require("../models/User");
+const cloudinary = require("../config/cloudinary");
 
 // ─────────────────────────────────────────────────────────────
 // @route   GET /api/materials
@@ -142,10 +143,11 @@ const uploadMaterial = async (req, res, next) => {
       throw new Error("Please upload a document file");
     }
 
-    const fileUrl    = `/uploads/${req.files.file[0].filename}`;
-    const coverImage = req.files.coverImage
-      ? `/uploads/${req.files.coverImage[0].filename}`
-      : null;
+    const fileUrl      = req.files.file[0].path;
+    const filePublicId = req.files.file[0].filename;
+
+    const coverImage         = req.files.coverImage ? req.files.coverImage[0].path     : null;
+    const coverImagePublicId = req.files.coverImage ? req.files.coverImage[0].filename  : null;
 
     // isFree comes as a string from form-data — convert to boolean
     const isFreeBoolean = isFree === "true" || isFree === true;
@@ -165,7 +167,9 @@ const uploadMaterial = async (req, res, next) => {
       term,
       year,
       fileUrl,
+      filePublicId,
       coverImage,
+      coverImagePublicId,
       uploadedBy: req.user._id,
       isFree:     isFreeBoolean,
       price:      isFreeBoolean ? 0 : Number(price),
@@ -375,14 +379,14 @@ const deleteMaterial = async (req, res, next) => {
       throw new Error("You can only delete your own materials");
     }
 
-    // Delete the file from disk
-    const filePath = path.join(__dirname, "../../", material.fileUrl);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    // Delete the file from Cloudinary
+    if (material.filePublicId) {
+      await cloudinary.uploader.destroy(material.filePublicId, { resource_type: "raw" });
+    }
 
-    // Delete cover image from disk if it exists
-    if (material.coverImage) {
-      const coverPath = path.join(__dirname, "../../", material.coverImage);
-      if (fs.existsSync(coverPath)) fs.unlinkSync(coverPath);
+    // Delete cover image from Cloudinary if it exists
+    if (material.coverImagePublicId) {
+      await cloudinary.uploader.destroy(material.coverImagePublicId, { resource_type: "image" });
     }
 
     await material.deleteOne();

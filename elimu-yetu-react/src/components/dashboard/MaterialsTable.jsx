@@ -41,7 +41,7 @@ function MaterialsTable({ materials, onRefresh }) {
   const canDelete = (m) => m.status !== "approved";
 
   const getImageSrc = (coverImage) =>
-    coverImage ? `${import.meta.env.VITE_API_URL}${coverImage}` : defaultImage;
+    coverImage || defaultImage;
 
   const handleEdit = (material) => {
     setEditingMaterial(material);

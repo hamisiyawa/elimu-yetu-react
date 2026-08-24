@@ -5,6 +5,7 @@ const bcrypt       = require("bcryptjs");
 const sendSms = require("../utils/sendSms");
 const path = require("path");
 const fs   = require("fs");
+const cloudinary = require("../config/cloudinary");
 
 // @route   POST /api/auth/register
 // @access  Public
@@ -445,10 +446,21 @@ const uploadAvatar = async (req, res, next) => {
       throw new Error("Please upload an image file");
     }
 
-    const profileImageUrl = `/uploads/${req.file.filename}`;
+    const profileImageUrl = req.file.path;
+    const profileImagePublicId = req.file.filename;
 
-    // save directly to the user document
-    await User.findByIdAndUpdate(req.user._id, { profileImage: profileImageUrl });
+    // Clean up the old avatar on Cloudinary before saving the new one,
+    // so replacing a profile picture doesn't silently leave orphaned
+    // files piling up in your Cloudinary storage
+    const currentUser = await User.findById(req.user._id);
+    if (currentUser?.profileImagePublicId) {
+      await cloudinary.uploader.destroy(currentUser.profileImagePublicId, { resource_type: "image" });
+    }
+
+    await User.findByIdAndUpdate(req.user._id, {
+      profileImage: profileImageUrl,
+      profileImagePublicId,
+    });
 
     res.status(200).json({ profileImageUrl });
 
@@ -611,17 +623,14 @@ const deleteMe = async (req, res, next) => {
     const Material = require("../models/Material");
     const Download = require("../models/Download");
 
-    // Remove every material this user uploaded, along with the
-    // actual files on disk — same pattern used in deleteMaterial
     const materials = await Material.find({ uploadedBy: user._id });
 
     for (const material of materials) {
-      const filePath = path.join(__dirname, "../../", material.fileUrl);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-
-      if (material.coverImage) {
-        const coverPath = path.join(__dirname, "../../", material.coverImage);
-        if (fs.existsSync(coverPath)) fs.unlinkSync(coverPath);
+      if (material.filePublicId) {
+        await cloudinary.uploader.destroy(material.filePublicId, { resource_type: "raw" });
+      }
+      if (material.coverImagePublicId) {
+        await cloudinary.uploader.destroy(material.coverImagePublicId, { resource_type: "image" });
       }
     }
     await Material.deleteMany({ uploadedBy: user._id });
@@ -640,9 +649,9 @@ const deleteMe = async (req, res, next) => {
     );
 
     // Remove the profile picture from disk if one was uploaded
-    if (user.profileImage) {
-      const avatarPath = path.join(__dirname, "../../", user.profileImage);
-      if (fs.existsSync(avatarPath)) fs.unlinkSync(avatarPath);
+    // Remove the profile picture from Cloudinary if one was uploaded
+    if (user.profileImagePublicId) {
+      await cloudinary.uploader.destroy(user.profileImagePublicId, { resource_type: "image" });
     }
 
     await user.deleteOne();

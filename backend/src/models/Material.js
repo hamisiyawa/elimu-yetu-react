@@ -53,6 +53,18 @@ const materialSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Cloudinary public_id — required to delete the file later,
+    // since deletion needs the id, not the URL
+    filePublicId: {
+      type: String,
+      default: null,
+    },
+
+    coverImagePublicId: {
+      type: String,
+      default: null,
+    },
+
     // the teacher who uploaded — references the User collection
     uploadedBy: {
       type:     mongoose.Schema.Types.ObjectId,
