@@ -3,28 +3,46 @@ import { useAuth } from "../context/AuthContext";
 import { logDownload } from "../services/materialsService";
 import { toast } from "react-toastify";
 import defaultCover from "../assets/images/targeter.jpg";
+import PaymentModal from "./PaymentModal";
 
 function MaterialCard({ _id, title, grade, term, coverImage, isFree, price }) {
   const { token } = useAuth();
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const handleDownload = async () => {
-    // block paid downloads — payment integration coming in V2
-    if (!isFree) {
-      toast.info(`This material costs KES ${price}. Payment coming soon.`);
+
+    if (!isFree && !token) {
+      toast.info("Please log in to purchase this material.");
       return;
     }
 
     setIsDownloading(true);
 
     try {
-      const data = await logDownload(_id, token);
+      const { blob, filename } = await logDownload(_id, token);
 
-      // open the file in a new tab — browser handles the download
-      window.open(data.fileUrl, "_blank");
+      // Trigger a real browser download from the blob — this works
+      // for both free and paid materials, since access was already
+      // verified server-side before any bytes were sent
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
 
-    } catch (error) {
-      toast.error(error.message || "Download failed. Please try again.");
+    }  catch (error) {
+      if (error.status === 402) {
+        setShowPaymentModal(true);
+      } else if (error.status === 401) {
+        toast.info("Please log in to purchase this material.");
+      } else {
+        toast.error(error.message || "Download failed. Please try again.");
+      }
+    
     } finally {
       setIsDownloading(false);
     }
@@ -76,6 +94,13 @@ function MaterialCard({ _id, title, grade, term, coverImage, isFree, price }) {
           )}
         </button>
       </div>
+
+      <PaymentModal
+        show={showPaymentModal}
+        material={{ _id, title, price }}
+        token={token}
+        onClose={() => setShowPaymentModal(false)}
+      />
 
     </div>
   );

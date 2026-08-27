@@ -1,9 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 function CreateAdminModal({ show, onClose, onConfirm, isSubmitting }) {
 
   const [formData, setFormData] = useState({ name: "", username: "", phone: "", password: "" });
   const [errors,   setErrors]   = useState({});
+  const [portalNode] = useState(() => document.createElement("div"));
+
+  useEffect(() => {
+    document.body.appendChild(portalNode);
+    return () => {
+      document.body.removeChild(portalNode);
+    };
+  }, [portalNode]);
 
   if (!show) return null;
 
@@ -37,7 +46,7 @@ function CreateAdminModal({ show, onClose, onConfirm, isSubmitting }) {
     onClose();
   };
 
-  return (
+  return createPortal(
     <div className="custom-modal-overlay">
       <div className="custom-modal" style={{ maxWidth: "440px" }}>
 
@@ -131,7 +140,8 @@ function CreateAdminModal({ show, onClose, onConfirm, isSubmitting }) {
         </div>
 
       </div>
-    </div>
+    </div>,
+    portalNode
   );
 }
 

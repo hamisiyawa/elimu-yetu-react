@@ -10,7 +10,7 @@ const authRoutes   = require("./routes/authRoutes");
 const materialsRoutes = require("./routes/materialsRoutes");
 const errorHandler = require("./middleware/errorHandler");
 const notificationRoutes = require("./routes/notificationRoutes");
-
+const paymentRoutes = require("./routes/paymentRoutes");
 // Connect to MongoDB
 connectDB();
 
@@ -20,6 +20,7 @@ const app = express();
 app.use(cors({
   origin: process.env.CLIENT_URL || "http://localhost:5173",
   credentials: true,
+  exposedHeaders: ["Content-Disposition"],
 }));
 
 app.use(express.json());
@@ -31,6 +32,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/materials", materialsRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/payments", paymentRoutes);
 // ── Health check ───────────────────────────────────────────────
 app.get("/api/health", (req, res) => {
   res.json({

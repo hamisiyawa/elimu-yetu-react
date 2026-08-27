@@ -5,6 +5,7 @@ const fs       = require("fs");
 const notify = require("../utils/notify");
 const User   = require("../models/User");
 const cloudinary = require("../config/cloudinary");
+const Purchase = require("../models/Purchase");
 
 // ─────────────────────────────────────────────────────────────
 // @route   GET /api/materials
@@ -250,9 +251,10 @@ const updateMaterial = async (req, res, next) => {
 
 // ─────────────────────────────────────────────────────────────
 // @route   POST /api/materials/:id/download
-// @desc    Log a download event and return the file URL
-//          Free materials: serve immediately
-//          Paid materials: return 402 with price (payment comes in V2)
+// @desc    Verify access (free, or a completed Purchase for paid
+//          materials), log the download, and stream the file back
+//          directly — the raw Cloudinary URL is never sent to the
+//          client, so it can't be shared/reused to bypass payment.
 // @access  Public — guests and logged-in users
 // ─────────────────────────────────────────────────────────────
 const downloadMaterial = async (req, res, next) => {
@@ -264,35 +266,113 @@ const downloadMaterial = async (req, res, next) => {
       throw new Error("Material not found");
     }
 
-    // Block paid downloads — payment integration comes in V2
     if (!material.isFree) {
-      return res.status(402).json({
-        message:  "This material requires payment before download",
-        price:    material.price,
-        currency: material.currency,
-        materialId: material._id,
+      if (!req.user) {
+        return res.status(401).json({
+          message: "Please log in to purchase this material",
+        });
+      }
+
+      const purchase = await Purchase.findOne({
+        buyer:    req.user._id,
+        material: material._id,
+        status:   "completed",
       });
+
+      if (!purchase) {
+        return res.status(402).json({
+          message:  "This material requires payment before download",
+          price:    material.price,
+          currency: material.currency,
+          materialId: material._id,
+        });
+      }
     }
 
-    // Increment download count atomically
-    await Material.findByIdAndUpdate(
-      req.params.id,
-      { $inc: { downloadCount: 1 } }
-    );
+    // Access confirmed (free, or a real completed purchase) —
+    // log the download and count it
+    await Material.findByIdAndUpdate(req.params.id, { $inc: { downloadCount: 1 } });
 
-    // Log the download event for analytics
-    // req.user is attached by optionalAuth if a token was provided
-    // If no token — downloadedBy stays null (guest download)
     await Download.create({
       material:     material._id,
       downloadedBy: req.user?._id || null,
       ipAddress:    req.ip,
     });
 
-    res.status(200).json({
-      fileUrl: material.fileUrl,
-      title:   material.title,
+    // Fetch the actual file from Cloudinary server-side and stream
+    // it straight through — the client only ever sees THIS server's
+    // URL, never the underlying Cloudinary one
+    const cloudinaryResponse = await fetch(material.fileUrl);
+
+    if (!cloudinaryResponse.ok) {
+      res.status(502);
+      throw new Error("Failed to retrieve the file — please try again");
+    }
+
+    const ext = material.fileUrl.split(".").pop();
+    const safeTitle = material.title.replace(/[^a-zA-Z0-9-_ ]/g, "").trim();
+
+    res.setHeader("Content-Type", cloudinaryResponse.headers.get("content-type") || "application/octet-stream");
+    res.setHeader("Content-Disposition", `attachment; filename="${safeTitle}.${ext}"`);
+
+    const reader = cloudinaryResponse.body.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      res.write(value);
+    }
+    res.end();
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+// ─────────────────────────────────────────────────────────────
+// @route   POST /api/materials/:id/grant-access
+// @desc    Manually grant a user access to a paid material —
+//          for support cases, or for testing before Phase 2
+//          (real M-Pesa integration) exists.
+// @access  Private — admin only
+// ─────────────────────────────────────────────────────────────
+const grantMaterialAccess = async (req, res, next) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      res.status(400);
+      throw new Error("userId is required");
+    }
+
+    const material = await Material.findById(req.params.id);
+    if (!material) {
+      res.status(404);
+      throw new Error("Material not found");
+    }
+
+    const existing = await Purchase.findOne({
+      buyer: userId, material: material._id, status: "completed",
     });
+    if (existing) {
+      res.status(409);
+      throw new Error("This user already has access to this material");
+    }
+
+    const { splitAmount } = require("../config/paymentConfig");
+    const { teacherEarning, platformFee } = splitAmount(material.price);
+
+    const purchase = await Purchase.create({
+      buyer:      userId,
+      material:   material._id,
+      amountPaid: material.price,
+      teacherEarning,
+      platformFee,
+      paymentMethod: "admin_grant",
+      status: "completed",
+    });
+
+    res.status(201).json({ message: "Access granted", purchase });
 
   } catch (error) {
     next(error);
@@ -426,4 +506,5 @@ module.exports = {
   updateMaterialStatus,
   deleteMaterial,
   getPendingMaterials,
+  grantMaterialAccess,
 };

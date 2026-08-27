@@ -13,6 +13,7 @@ const {
   updateMaterialStatus,
   deleteMaterial,
   getPendingMaterials,
+  grantMaterialAccess,
 } = require("../controllers/materialsController");
 
 const { protect, authorise } = require("../middleware/authMiddleware");
@@ -42,6 +43,7 @@ router.get("/",          getMaterials);
 router.get("/pending",   protect, authorise("admin"), getPendingMaterials);
 router.get("/my",        protect, authorise("teacher"), getMyMaterials);
 router.get("/:id",       getMaterialById);
+router.post("/:id/grant-access", protect, authorise("admin"), grantMaterialAccess);
 
 // Download — public but logs user if token present
 router.post("/:id/download", optionalAuth, downloadMaterial);

@@ -56,12 +56,11 @@ export const fetchMostDownloaded = async (limit = 10) => {
   return data; // { materials, total, ... }
 };
 
-// ── Log a download and get the file URL ──────────────────────
+// ── Download a material — returns the actual file as a blob,
+// or throws with a status code (401/402/404/500) on failure ──
 export const logDownload = async (materialId, token = null) => {
 
   const headers = {};
-
-  // only attach token if the user is logged in
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const response = await fetch(`${API_URL}/${materialId}/download`, {
@@ -69,11 +68,23 @@ export const logDownload = async (materialId, token = null) => {
     headers,
   });
 
-  const data = await response.json();
+  if (!response.ok) {
+    // Error responses are still JSON — only a successful download
+    // is raw file bytes
+    const data = await response.json();
+    const error = new Error(data.message || "Download failed");
+    error.status = response.status;
+    error.price  = data.price;
+    throw error;
+  }
 
-  if (!response.ok) throw new Error(data.message || "Download failed");
+  const blob = await response.blob();
 
-  return data; // { fileUrl, title }
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="(.+)"/);
+  const filename = match ? match[1] : "download";
+
+  return { blob, filename };
 };
 
 // ── Upload a new material (teacher only) ─────────────────────

@@ -1,9 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 function RejectReasonModal({ show, material, onClose, onConfirm, isSubmitting }) {
 
   const [reason, setReason] = useState("");
   const [error,  setError]  = useState("");
+  const [portalNode] = useState(() => document.createElement("div"));
+
+  useEffect(() => {
+    document.body.appendChild(portalNode);
+    return () => {
+      document.body.removeChild(portalNode);
+    };
+  }, [portalNode]);
 
   if (!show || !material) return null;
 
@@ -84,7 +93,8 @@ function RejectReasonModal({ show, material, onClose, onConfirm, isSubmitting })
         </div>
 
       </div>
-    </div>
+    </div>,
+    portalNode
   );
 }
 

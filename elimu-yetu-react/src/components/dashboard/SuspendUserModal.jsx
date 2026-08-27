@@ -1,8 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 function SuspendUserModal({ show, user, onClose, onConfirm, isSubmitting }) {
 
   const [reason, setReason] = useState("");
+  const [portalNode] = useState(() => document.createElement("div"));
+
+  useEffect(() => {
+    document.body.appendChild(portalNode);
+    return () => {
+      document.body.removeChild(portalNode);
+    };
+  }, [portalNode]);
 
   if (!show || !user) return null;
 
@@ -15,7 +24,7 @@ function SuspendUserModal({ show, user, onClose, onConfirm, isSubmitting }) {
     onClose();
   };
 
-  return (
+  return createPortal(
     <div className="custom-modal-overlay">
       <div className="custom-modal" style={{ maxWidth: "440px" }}>
 
@@ -74,7 +83,8 @@ function SuspendUserModal({ show, user, onClose, onConfirm, isSubmitting }) {
         </div>
 
       </div>
-    </div>
+    </div>,
+    portalNode
   );
 }
 
