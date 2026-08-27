@@ -19,6 +19,7 @@ import AdminApprovals from "./pages/dashboard/AdminApprovals";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import ManageUsers from "./pages/dashboard/ManageUsers";
 
+
 function App() {
   return (
     <BrowserRouter>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { logDownload } from "../services/materialsService";
 import { toast } from "react-toastify";
-import defaultCover from "../assets/images/targeter.jpg";
+import defaultCover from "../assets/images/fallback_image.png";
 import PaymentModal from "./PaymentModal";
 
 function MaterialCard({ _id, title, grade, term, coverImage, isFree, price }) {
@@ -54,7 +54,7 @@ function MaterialCard({ _id, title, grade, term, coverImage, isFree, price }) {
       <div className="card-image">
         <img
           src={
-            coverImage || defaultImage
+            coverImage || defaultCover
           }
           alt={title}
         />
