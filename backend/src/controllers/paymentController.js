@@ -1,16 +1,16 @@
 const Material = require("../models/Material");
 const Purchase = require("../models/Purchase");
 const { splitAmount } = require("../config/paymentConfig");
+const {
+  getAccessToken,
+  generateTimestamp,
+  generatePassword,
+  formatPhoneForMpesa,
+} = require("../config/daraja");
 
 // ─────────────────────────────────────────────────────────────
 // @route   POST /api/payments/initiate
-// @desc    Start a payment for a paid material.
-//
-//          ⚠️ MOCK IMPLEMENTATION — Phase 2 will replace the
-//          setTimeout block below with a real Safaricom Daraja
-//          STK Push call. Everything else (the Purchase record,
-//          the response shape, the status endpoint) stays the
-//          same either way — the frontend never needs to change.
+// @desc    Start a real M-Pesa STK Push payment for a material.
 // @access  Private
 // ─────────────────────────────────────────────────────────────
 const initiatePayment = async (req, res, next) => {
@@ -58,19 +58,47 @@ const initiatePayment = async (req, res, next) => {
       status: "pending",
     });
 
-    // ── MOCK: simulate Safaricom's async callback ──────────────
-    // Real STK Push returns immediately (just a checkoutRequestId)
-    // and Safaricom calls YOUR server back seconds later once the
-    // user enters their PIN. We fake that same async shape here
-    // with a delay, so the frontend polling logic built against
-    // this mock will work unchanged against the real thing later.
-    setTimeout(async () => {
-      try {
-        await Purchase.findByIdAndUpdate(purchase._id, { status: "completed" });
-      } catch (err) {
-        console.error("Mock payment completion failed:", err.message);
+    // ── Real Daraja STK Push ────────────────────────────────────
+    const accessToken = await getAccessToken();
+    const timestamp    = generateTimestamp();
+    const password     = generatePassword(timestamp);
+
+    const stkResponse = await fetch(
+      `${process.env.MPESA_BASE_URL}/mpesa/stkpush/v1/processrequest`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          BusinessShortCode: process.env.MPESA_SHORTCODE,
+          Password: password,
+          Timestamp: timestamp,
+          TransactionType: "CustomerPayBillOnline",
+          Amount: Math.round(material.price),
+          PartyA: formatPhoneForMpesa(phone),
+          PartyB: process.env.MPESA_SHORTCODE,
+          PhoneNumber: formatPhoneForMpesa(phone),
+          CallBackURL: process.env.MPESA_CALLBACK_URL,
+          AccountReference: material.title.slice(0, 20),
+          TransactionDesc: "Elimu Yetu material purchase",
+        }),
       }
-    }, 4000);
+    );
+
+    const stkData = await stkResponse.json();
+
+    if (!stkResponse.ok || stkData.ResponseCode !== "0") {
+      await Purchase.findByIdAndUpdate(purchase._id, { status: "failed" });
+      res.status(502);
+      throw new Error(stkData.errorMessage || "Failed to initiate M-Pesa payment");
+    }
+
+    await Purchase.findByIdAndUpdate(purchase._id, {
+      checkoutRequestId: stkData.CheckoutRequestID,
+      merchantRequestId: stkData.MerchantRequestID,
+    });
 
     res.status(201).json({
       message: "Payment request sent — check your phone",
@@ -79,6 +107,50 @@ const initiatePayment = async (req, res, next) => {
 
   } catch (error) {
     next(error);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// @route   POST /api/payments/mpesa-callback
+// @desc    Safaricom calls this once the customer enters their
+//          PIN (or cancels/times out). Must always respond 200,
+//          or Safaricom retries 3x then quarantines this app.
+// @access  Public — Safaricom's own servers call this, not a
+//          logged-in user, so it can't require a JWT
+// ─────────────────────────────────────────────────────────────
+const mpesaCallback = async (req, res) => {
+  try {
+    const callback = req.body?.Body?.stkCallback;
+
+    if (!callback) {
+      return res.status(200).json({ ResultCode: 0, ResultDesc: "Accepted" });
+    }
+
+    const purchase = await Purchase.findOne({
+      checkoutRequestId: callback.CheckoutRequestID,
+    });
+
+    if (!purchase) {
+      return res.status(200).json({ ResultCode: 0, ResultDesc: "Accepted" });
+    }
+
+    if (callback.ResultCode === 0) {
+      const items = callback.CallbackMetadata?.Item || [];
+      const receipt = items.find((i) => i.Name === "MpesaReceiptNumber")?.Value;
+
+      purchase.status = "completed";
+      purchase.transactionRef = receipt || null;
+      await purchase.save();
+    } else {
+      purchase.status = "failed";
+      await purchase.save();
+    }
+
+    res.status(200).json({ ResultCode: 0, ResultDesc: "Accepted" });
+
+  } catch (error) {
+    console.error("M-Pesa callback error:", error.message);
+    res.status(200).json({ ResultCode: 0, ResultDesc: "Accepted" });
   }
 };
 
@@ -106,4 +178,4 @@ const getPaymentStatus = async (req, res, next) => {
   }
 };
 
-module.exports = { initiatePayment, getPaymentStatus };
+module.exports = { initiatePayment, getPaymentStatus, mpesaCallback };

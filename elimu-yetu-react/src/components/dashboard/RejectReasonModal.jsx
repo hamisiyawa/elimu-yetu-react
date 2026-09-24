@@ -30,7 +30,7 @@ function RejectReasonModal({ show, material, onClose, onConfirm, isSubmitting })
     onClose();
   };
 
-  return (
+  return createPortal(
     <div className="custom-modal-overlay">
       <div className="custom-modal" style={{ maxWidth: "440px" }}>
 
